@@ -1,0 +1,68 @@
+March 22, 2010: 0.17.1
+- change conversions between Firebird and Qt
+      "ASCII"       = "ISO 8859-1"
+      "BIG_5"       = "Big5"
+      "CYRL"        = "IBM 866"
+      "DOS850"      = "IBM 850"
+      "DOS866"      = "IBM 866"
+      "KOI8-R"      = "KOI8-R"
+      "KOI8-U"      = "KOI8-U"
+      "EUCJ_0208"   = "JIS X 0208"
+      "GB_2312"     = "GB18030-0"
+      "ISO8859_[1-9, 13]"   = "ISO 8859-[1-9, 13]"
+      "KSC_5601"    = "Big5-HKSCS"
+      "SJIS_0208"   = "JIS X 0208"
+      "UNICODE_FSS" = "UTF-8"
+      "UTF8"        = "UTF-8"
+      "WIN125[0-8]"     = "Windows-125[1-8]"
+    else use QTextCodec::codecForLocale()
+
+March 13, 2010: 0.17
++ "make install" will copy driver to [QT_INSTALL_PLUGINS]/sqldrivers
+- fixed: character sets exception (Issue 8)
+    Conversions between Firebird and Qt
+      "ASCII"       = "IBM 866"
+      "BIG_5"       = "Big5"
+      "CYRL"        = "KOI8-R"
+      "DOS850"      = "IBM 850"
+      "DOS866"      = "IBM 866"
+      "EUCJ_0208"   = "JIS X 0208"
+      "GB_2312"     = "GB18030-0"
+      "ISO8859_[1-9, 13]"   = "ISO 8859-[1-9, 13]"
+      "KSC_5601"    = "Big5-HKSCS"
+      "SJIS_0208"   = "JIS X 0208"
+      "UNICODE_FSS" = "UTF-32"
+      "UTF8"        = "UTF-8"
+      "WIN125[0-8]"     = "Windows-125[1-8]"
+    else use QTextCodec::codecForLocale()
+
+February 26, 2010: 0.16
+- fixed: NUMERIC and DECIMAL fields with small length return wrong value (Issue 7)
+
+February 15, 2010: 0.15
+- fixed: Produce different targets depengind on config (Debug Release) (Issue 6)
++ license under LGPL version 2.1
++ license under GPL version 3.0
+
+January 25, 2010: 0.14
+- fixed: ASSERTION in qsqlcachedresult when calling stored procedure (Issue 1)
+- fixed: bug when blob contains '\0' char (Issue 2)
++ Add support of firebird ROLE (Issue 3)
++ change in IbppDriver.pro for  support debug and release builds (Issue 4)
+- fixed: bug when only "NONE" and "WIN1251" charset is set (Issue 5)
+  NOTE: Default charset set to "NONE" 
+- compile warnings
+
+February 11, 2009: 0.13
+- change in ibpp.pri for compile with Microsoft compilers
+- test with Qt 4.5rc1 
+
+February 9, 2009: 0.12
+- IBPP 2.5.3.1
+- test with Qt 4.4.3 
+
+August 11, 2006: Version 0.11
+	First release
+
+June 25, 2006: Version 0.10
+	Beginning of the development 
