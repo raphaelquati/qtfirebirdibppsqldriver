@@ -20,3 +20,11 @@ target.path     += $$[QT_INSTALL_PLUGINS]/sqldrivers
 INSTALLS        += target
 
 PLUGIN_CLASS_NAME = QFBDriverPlugin
+
+OTHER_FILES += \
+    ChangeLog.txt \
+    LICENSE \
+    LICENSE.GPL3 \
+    LICENSE.LGPL \
+    README.md \
+    README.txt
