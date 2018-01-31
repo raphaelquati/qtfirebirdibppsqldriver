@@ -27,4 +27,5 @@ OTHER_FILES += \
     LICENSE.GPL3 \
     LICENSE.LGPL \
     README.md \
-    README.txt
+    README.txt \
+	sqlfb.json

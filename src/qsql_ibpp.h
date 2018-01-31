@@ -28,6 +28,7 @@
 
 #include <QtSql/qsqlresult.h>
 #include <QtSql/qsqldriver.h>
+#include <qsqldriverplugin.h>
 #include "qsqlcachedresult_p.h"
 
 QT_BEGIN_HEADER
@@ -36,6 +37,17 @@ class QFBResultPrivate;
 class QFBDriver;
 class QTextCodec;
 
+class QFBDriverPlugin : public QSqlDriverPlugin
+{
+    Q_OBJECT
+    Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QSqlDriverFactoryInterface" FILE "sqlfb.json")
+
+public:
+    QFBDriverPlugin();
+
+    QSqlDriver* create(const QString &);
+    QStringList keys() const;
+};
 class QFBResult : public QSqlCachedResult
 {
     friend class QFBResultPrivate;

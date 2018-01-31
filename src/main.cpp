@@ -23,23 +23,10 @@
 *
 */
 
-#include <qsqldriverplugin.h>
 #include <qstringlist.h>
 #include "qsql_ibpp.h"
 
 QT_BEGIN_NAMESPACE
-
-class QFBDriverPlugin : public QSqlDriverPlugin
-{
-    Q_PLUGIN_METADATA(IID "org.ibpp.qsqlfb.QFBDriverPlugin" FILE "sqlfb.json")
-
-public:
-    QFBDriverPlugin();
-
-    QSqlDriver* create(const QString &);
-    QStringList keys() const;
-};
-
 QFBDriverPlugin::QFBDriverPlugin()
     : QSqlDriverPlugin()
 {
@@ -60,7 +47,7 @@ QStringList QFBDriverPlugin::keys() const
     l  << QLatin1String("QFIREBIRD");
     return l;
 }
-
+QT_END_NAMESPACE
 //Q_EXPORT_STATIC_PLUGIN(QFBDriverPlugin)
 //Q_EXPORT_PLUGIN2(qsqlfb, QFBDriverPlugin)
 
