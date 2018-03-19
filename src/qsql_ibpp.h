@@ -64,6 +64,7 @@ protected:
     bool gotoNext(QSqlCachedResult::ValueCache& row, int rowIdx);
     bool reset (const QString& query);
     int size();
+    bool isNull(const int& field);
     int numRowsAffected();
     QSqlRecord record() const;
 

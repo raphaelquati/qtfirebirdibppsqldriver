@@ -148,10 +148,8 @@ static IBPP::Timestamp toIBPPTimeStamp(const QDateTime &dt)
 //-----------------------------------------------------------------------//
 static QDateTime fromIBPPTimeStamp(IBPP::Timestamp &dt)
 {
-    int y,m,d,h,min,s,ms;
-    dt.GetDate(y,m,d);
-    dt.GetTime(h,min,s,ms);
-    return QDateTime(QDate(y,m,d), QTime(h,min,s,ms));
+    return QDateTime(QDate(dt.Year(), dt.Month(), dt.Day()),
+                     QTime(dt.Hours(), dt.Minutes(), dt.Seconds(), 0));
 }
 //-----------------------------------------------------------------------//
 static IBPP::Time toIBPPTime(const QTime &t)
@@ -164,9 +162,7 @@ static IBPP::Time toIBPPTime(const QTime &t)
 //-----------------------------------------------------------------------//
 static QTime fromIBPPTime(IBPP::Time & it)
 {
-    int h,min,s,ms;
-    it.GetTime(h,min,s,ms);
-    return QTime(h,min,s,ms);
+    return QTime(it.Hours(), it.Minutes(), it.Seconds(), 0);
 }
 //-----------------------------------------------------------------------//
 static IBPP::Date toIBPPDate(const QDate &t)
@@ -179,9 +175,7 @@ static IBPP::Date toIBPPDate(const QDate &t)
 //-----------------------------------------------------------------------//
 static QDate fromIBPPDate(IBPP::Date &id)
 {
-    int y,m,d;
-    id.GetDate(y,m,d);
-    return QDate(y,m,d);
+    return QDate(id.Year(), id.Month(), id.Day());
 }
 //-----------------------------------------------------------------------//
 class QFBDriverPrivate
@@ -866,6 +860,29 @@ int QFBResult::size()
         Q_UNUSED(e);
     }
     return nra;
+}
+//-----------------------------------------------------------------------//
+bool QFBResult::isNull(const int& field)
+{
+    int cols = 0;
+    try
+    {
+        cols = rp->iSt->Columns();
+
+        if (field < 0 || field >= cols)
+        {
+            return true;
+        }
+        else
+        {
+            return rp->iSt->IsNull(field + 1);
+        }
+    }
+    catch (IBPP::Exception& e)
+    {
+        Q_UNUSED(e);
+        return true;
+    }
 }
 //-----------------------------------------------------------------------//
 int QFBResult::numRowsAffected()
