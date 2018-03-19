@@ -345,9 +345,6 @@ public:
                   QSqlError::ErrorType type = QSqlError::UnknownError);
 
 public:
-    //QFBResult *r;
-    //const QFBDriver *d;
-
     bool localTransaction;
 
     int queryType;
@@ -486,12 +483,12 @@ bool QFBResultPrivate::commit()
 QFBResult::QFBResult(const QFBDriver *db, QTextCodec *tc)
         : QSqlCachedResult(*new QFBResultPrivate(this, db, tc))
 {
-    //rp = new QFBResultPrivate(this, db, tc);
+
 }
 //-----------------------------------------------------------------------//
 QFBResult::~QFBResult()
 {
-    //delete rp;
+
 }
 //-----------------------------------------------------------------------//
 bool QFBResult::prepare(const QString& query)

@@ -115,9 +115,6 @@ public:
 
 //private Q_SLOTS:
 //    void qHandleEventNotification(void* updatedResultBuffer);
-//OLD
-//private:
-//    QFBDriverPrivate* dp;
 };
 
 QT_END_HEADER
