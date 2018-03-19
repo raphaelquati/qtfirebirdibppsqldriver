@@ -10,7 +10,7 @@ unix{
   IBPP_GCC
 }
 win32{
-  LIBS += -L$$PWD/../lib -lfbclient_ms -ladvapi32
+#  LIBS += -L$$PWD/../lib -lfbclient_ms -ladvapi32
   DEFINES += IBPP_WINDOWS
 }
 

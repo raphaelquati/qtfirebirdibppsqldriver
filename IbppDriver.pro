@@ -9,8 +9,8 @@ TARGET = qsqlfb
 
 DEFINES += QT_NO_CAST_TO_ASCII \
     QT_NO_CAST_FROM_ASCII
-HEADERS += src/qsql_ibpp.h \
-    src/qsqlcachedresult_p.h
+HEADERS += src/qsql_ibpp.h
+
 SOURCES += src/main.cpp \
     src/qsql_ibpp.cpp
 include(./ibpp2531/ibpp.pri) # +=   IBPP
