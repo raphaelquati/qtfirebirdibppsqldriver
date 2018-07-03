@@ -35,6 +35,7 @@
 #include <qlist.h>
 #include <qvector.h>
 
+
 #include "all_in_one.cpp"
 
 #include "ibpp.h"
@@ -210,7 +211,6 @@ public:
     IBPP::TLR tlr;
     IBPP::TFF tff;
 
-//    QFBDriver *d;
     QTextCodec *textCodec;
 };
 
@@ -345,6 +345,7 @@ public:
                   QSqlError::ErrorType type = QSqlError::UnknownError);
 
 public:
+
     bool localTransaction;
 
     int queryType;
@@ -483,12 +484,12 @@ bool QFBResultPrivate::commit()
 QFBResult::QFBResult(const QFBDriver *db, QTextCodec *tc)
         : QSqlCachedResult(*new QFBResultPrivate(this, db, tc))
 {
-
+    //rp = new QFBResultPrivate(this, db, tc);
 }
 //-----------------------------------------------------------------------//
 QFBResult::~QFBResult()
 {
-
+    //delete rp;
 }
 //-----------------------------------------------------------------------//
 bool QFBResult::prepare(const QString& query)
@@ -586,6 +587,7 @@ bool QFBResult::exec()
 
             switch (d->iSt->ParameterType(i))
             {
+            //int64_t i;
             case IBPP::sdLargeint:
                 if (d->iSt->ParameterScale(i))
                     d->iSt->Set(i, val.toDouble());
@@ -939,8 +941,16 @@ QSqlRecord QFBResult::record() const
     }
     for (int i = 1; i <= cols; ++i)
     {
+        const QString& column_alias = QString::fromLatin1(d->iSt->ColumnAlias(i)).simplified();
+        QString alias = column_alias;
 
-        QSqlField f(QString::fromLatin1(d->iSt->ColumnAlias(i)).simplified(),
+        int num(1);
+        while (rec.indexOf(alias) >= 0) {
+            alias = column_alias + QString::number(num);
+            num++;
+        }
+
+        QSqlField f(alias,
                     qIBPPTypeName(d->iSt->ColumnType(i)));
         f.setLength(d->iSt->ColumnSize(i));
         f.setPrecision(d->iSt->ColumnScale(i));
