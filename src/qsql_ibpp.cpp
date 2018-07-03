@@ -920,7 +920,16 @@ QSqlRecord QFBResult::record() const
     for (int i = 1; i <= cols; ++i)
     {
 
-        QSqlField f(QString::fromLatin1(rp->iSt->ColumnAlias(i)).simplified(),
+        const QString& column_alias = QString::fromLatin1(rp->iSt->ColumnAlias(i)).simplified();
+        QString alias = column_alias;
+
+        int num(1);
+        while (rec.indexOf(alias) >= 0) {
+            alias = column_alias + QString::number(num);
+            num++;
+        }
+
+        QSqlField f(alias,
                     qIBPPTypeName(rp->iSt->ColumnType(i)));
         f.setLength(rp->iSt->ColumnSize(i));
         f.setPrecision(rp->iSt->ColumnScale(i));
