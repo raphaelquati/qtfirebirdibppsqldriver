@@ -149,7 +149,7 @@ static IBPP::Timestamp toIBPPTimeStamp(const QDateTime &dt)
 static QDateTime fromIBPPTimeStamp(IBPP::Timestamp &dt)
 {
     return QDateTime(QDate(dt.Year(), dt.Month(), dt.Day()),
-                     QTime(dt.Hours(), dt.Minutes(), dt.Seconds(), 0));
+                     QTime(dt.Hours(), dt.Minutes(), dt.Seconds(), dt.SubSeconds()/10));
 }
 //-----------------------------------------------------------------------//
 static IBPP::Time toIBPPTime(const QTime &t)
@@ -162,7 +162,7 @@ static IBPP::Time toIBPPTime(const QTime &t)
 //-----------------------------------------------------------------------//
 static QTime fromIBPPTime(IBPP::Time & it)
 {
-    return QTime(it.Hours(), it.Minutes(), it.Seconds(), 0);
+    return QTime(it.Hours(), it.Minutes(), it.Seconds(), it.SubSeconds()/10);
 }
 //-----------------------------------------------------------------------//
 static IBPP::Date toIBPPDate(const QDate &t)
@@ -920,7 +920,16 @@ QSqlRecord QFBResult::record() const
     for (int i = 1; i <= cols; ++i)
     {
 
-        QSqlField f(QString::fromLatin1(rp->iSt->ColumnAlias(i)).simplified(),
+        const QString& column_alias = QString::fromLatin1(rp->iSt->ColumnAlias(i)).simplified();
+        QString alias = column_alias;
+
+        int num(1);
+        while (rec.indexOf(alias) >= 0) {
+            alias = column_alias + QString::number(num);
+            num++;
+        }
+
+        QSqlField f(alias,
                     qIBPPTypeName(rp->iSt->ColumnType(i)));
         f.setLength(rp->iSt->ColumnSize(i));
         f.setPrecision(rp->iSt->ColumnScale(i));
