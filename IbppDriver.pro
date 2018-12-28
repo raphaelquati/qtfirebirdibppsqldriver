@@ -1,7 +1,7 @@
 CONFIG += qt \
     plugin
-QT += core \
-    sql
+QT += core sql sql-private core-private
+
 DEFINES	-= UNICODE
 QT -= gui # -=   GUI
 TEMPLATE = lib

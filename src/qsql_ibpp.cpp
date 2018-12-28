@@ -35,13 +35,15 @@
 #include <qlist.h>
 #include <qvector.h>
 
-
-#include "all_in_one.cpp"
-
 #include "ibpp.h"
 #include "qsql_ibpp.h"
 
-#include "src/qt_5_9_4/qsqldriver_p.h"
+#include <QtCore/private/qglobal_p.h>
+#include <QtCore/private/qobject_p.h>
+#include <QtSql/private/qtsqlglobal_p.h>
+#include <QtSql/private/qsqldriver_p.h>
+#include <QtSql/private/qsqlresult_p.h>
+
 
 #define blr_text		(unsigned char)14
 #define blr_text2		(unsigned char)15	/* added in 3.2 JPN */
@@ -592,7 +594,7 @@ bool QFBResult::exec()
                 if (d->iSt->ParameterScale(i))
                     d->iSt->Set(i, val.toDouble());
                 else
-                    d->iSt->Set(i, val.toLongLong());
+                    d->iSt->Set(i, static_cast<int64_t>(val.toLongLong()));
                 break;
             case IBPP::sdInteger:
                 if (d->iSt->ParameterScale(i))
@@ -799,9 +801,9 @@ bool QFBResult::gotoNext(QSqlCachedResult::ValueCache& row, int rowIdx)
                 }
                 else
                 {
-                    qlonglong l_Long;
+                    int64_t l_Long;
                     d->iSt->Get(i, l_Long);
-                    row[idx] = l_Long;
+                    row[idx] = static_cast<qlonglong>(l_Long);
 
                 }
                 break;

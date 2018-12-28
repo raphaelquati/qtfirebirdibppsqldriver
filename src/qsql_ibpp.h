@@ -29,7 +29,7 @@
 #include <QtSql/qsqlresult.h>
 #include <QtSql/qsqldriver.h>
 #include <qsqldriverplugin.h>
-#include "src/qt_5_9_4/qsqlcachedresult_p.h"
+#include <QtSql/private/qsqlcachedresult_p.h>
 
 QT_BEGIN_HEADER
 class QFBDriverPrivate;
@@ -78,8 +78,8 @@ class QFBDriver : public QSqlDriver
     Q_DECLARE_PRIVATE(QFBDriver)
     Q_OBJECT
 public:
-    explicit QFBDriver(QObject *parent = 0);
-    explicit QFBDriver(void *connection, QObject *parent = 0);
+    explicit QFBDriver(QObject *parent = nullptr);
+    explicit QFBDriver(void *connection, QObject *parent = nullptr);
     virtual ~QFBDriver();
     bool hasFeature(DriverFeature f) const Q_DECL_OVERRIDE;
     bool open(const QString & db,
@@ -115,6 +115,9 @@ public:
 
 //private Q_SLOTS:
 //    void qHandleEventNotification(void* updatedResultBuffer);
+//OLD
+//private:
+//    QFBDriverPrivate* dp;
 };
 
 QT_END_HEADER
