@@ -957,6 +957,7 @@ QSqlRecord QFBResult::record() const
         f.setLength(d->iSt->ColumnSize(i));
         f.setPrecision(d->iSt->ColumnScale(i));
         f.setSqlType(d->iSt->ColumnType(i));
+
         rec.append(f);
     }
     return rec;
