@@ -38,7 +38,7 @@ QSqlDriver* QFBDriverPlugin::create(const QString &name)
         QFBDriver* driver = new QFBDriver();
         return driver;
     }
-    return 0;
+    return nullptr;
 }
 
 QStringList QFBDriverPlugin::keys() const

@@ -35,9 +35,15 @@
 #include <qlist.h>
 #include <qvector.h>
 
-
 #include "ibpp.h"
 #include "qsql_ibpp.h"
+
+#include <QtCore/private/qglobal_p.h>
+#include <QtCore/private/qobject_p.h>
+#include <QtSql/private/qtsqlglobal_p.h>
+#include <QtSql/private/qsqldriver_p.h>
+#include <QtSql/private/qsqlresult_p.h>
+
 
 #define blr_text		(unsigned char)14
 #define blr_text2		(unsigned char)15	/* added in 3.2 JPN */
@@ -178,12 +184,12 @@ static QDate fromIBPPDate(IBPP::Date &id)
     return QDate(id.Year(), id.Month(), id.Day());
 }
 //-----------------------------------------------------------------------//
-class QFBDriverPrivate
+class QFBDriverPrivate: public QSqlDriverPrivate
 {
+    Q_DECLARE_PUBLIC(QFBDriver)
 public:
-    QFBDriverPrivate(QFBDriver *dd)
-        : d(dd)
-        , textCodec(0)
+    QFBDriverPrivate()
+         : QSqlDriverPrivate(), textCodec(0)
     {
         iDb.clear();
         iTr.clear();
@@ -207,20 +213,22 @@ public:
     IBPP::TLR tlr;
     IBPP::TFF tff;
 
-    QFBDriver *d;
     QTextCodec *textCodec;
 };
+
 //-----------------------------------------------------------------------//
 void QFBDriverPrivate::setError(const std::string &err, IBPP::Exception &e, QSqlError::ErrorType type)
 {
 //	qWarning(err.data());
-    d->setLastError(QSqlError(QString::fromLatin1(err.data()),
+    Q_Q(QFBDriver);
+    q->setLastError(QSqlError(QString::fromLatin1(err.data()),
                               QString::fromLatin1(e.ErrorMessage()), type));
 }
 //-----------------------------------------------------------------------//
 void QFBDriverPrivate::checkTransactionArguments()
 {
-    if (!d->property("Transaction").isValid())
+    Q_Q(QFBDriver);
+    if (!q->property("Transaction").isValid())
     {
         tam = IBPP::amWrite;
         til = IBPP::ilConcurrency;
@@ -229,7 +237,7 @@ void QFBDriverPrivate::checkTransactionArguments()
         return;
     }
 
-    QString args = d->property("Transaction").toString();
+    QString args = q->property("Transaction").toString();
     const QStringList opts(args.split(QLatin1Char(','), QString::SkipEmptyParts));
     for (int i = 0; i < opts.count(); ++i)
     {
@@ -313,18 +321,19 @@ void QFBDriverPrivate::checkTransactionArguments()
                                  tmp.toLocal8Bit().constData());
     }
 //    qWarning("IBPP::Transaction arguments(TAM=%d, TIL=%d, TLR=%d, TFF=%d)", tam, til, tlr, tff);
-    d->setProperty("Transaction",QVariant());
+    q->setProperty("Transaction",QVariant());
 
 }
 //-----------------------------------------------------------------------//
-class QFBResultPrivate
+class QFBResultPrivate: public QSqlCachedResultPrivate
 {
+    Q_DECLARE_PUBLIC(QFBResult)
+
 public:
+    Q_DECLARE_SQLDRIVER_PRIVATE(QFBDriver)
+
     QFBResultPrivate(QFBResult *rr, const QFBDriver *dd, QTextCodec *tc);
-    ~QFBResultPrivate()
-    {
-        cleanup();
-    }
+    ~QFBResultPrivate() { cleanup(); }
 
     void cleanup();
 
@@ -333,11 +342,11 @@ public:
 
     bool isSelect();
 
-    void setError(const std::string &err, IBPP::Exception &e, QSqlError::ErrorType type);
+    void setError(const std::string &err,
+                  IBPP::Exception &e,
+                  QSqlError::ErrorType type = QSqlError::UnknownError);
 
 public:
-    QFBResult *r;
-    const QFBDriver *d;
 
     bool localTransaction;
 
@@ -349,12 +358,13 @@ public:
 
     QTextCodec *textCodec;
 };
+
 //-----------------------------------------------------------------------//
-QFBResultPrivate::QFBResultPrivate(QFBResult *rr, const QFBDriver *dd, QTextCodec *tc):
-        r(rr), d(dd), queryType(-1), textCodec(tc)
+QFBResultPrivate::QFBResultPrivate(QFBResult *rr, const QFBDriver *dd, QTextCodec *tc)
+        : QSqlCachedResultPrivate(rr, dd), queryType(-1), textCodec(tc)
 {
     localTransaction = true;
-    iDb = dd->dp->iDb;
+    iDb = drv_d_func()->iDb;
 
     try
     {
@@ -366,9 +376,11 @@ QFBResultPrivate::QFBResultPrivate(QFBResult *rr, const QFBDriver *dd, QTextCode
         setError("Unable create local transaction and statement", e, QSqlError::StatementError);
     }
 }
+
 //-----------------------------------------------------------------------//
 void QFBResultPrivate::cleanup()
 {
+    Q_Q(QFBResult);
     commit();
 
     //if (!localTransaction)
@@ -385,14 +397,15 @@ void QFBResultPrivate::cleanup()
 
     queryType = -1;
 
-    r->cleanup();
+    q->cleanup();
 }
 //-----------------------------------------------------------------------//
 void QFBResultPrivate::setError(const std::string &err, IBPP::Exception &e, QSqlError::ErrorType type)
 {
 //	qWarning(err.data());
+    Q_Q(QFBResult);
     qWarning(e.ErrorMessage());
-    r->setLastError(QSqlError(QString::fromLatin1(err.data()),
+    q->setLastError(QSqlError(QString::fromLatin1(err.data()),
                               QString::fromLatin1(e.ErrorMessage()), type));
 }
 //-----------------------------------------------------------------------//
@@ -415,13 +428,13 @@ bool QFBResultPrivate::transaction()
     if (iTr->Started())
         return true;
 
-    if (d->dp->iTr != 0)
-        if (d->dp->iTr->Started())
+    if (drv_d_func()->iTr != 0)
+        if (drv_d_func()->iTr->Started())
         {
             localTransaction = false;
             iTr.clear();
             iSt.clear();
-            iTr = d->dp->iTr;
+            iTr = drv_d_func()->iTr;
             iSt = IBPP::StatementFactory(iDb,iTr);
             return true;
         }
@@ -432,8 +445,11 @@ bool QFBResultPrivate::transaction()
     {
         iTr.clear();
         iSt.clear();
-        d->dp->checkTransactionArguments();
-        iTr = IBPP::TransactionFactory(iDb, d->dp->tam, d->dp->til, d->dp->tlr, d->dp->tff);
+        drv_d_func()->checkTransactionArguments();
+        iTr = IBPP::TransactionFactory(iDb, drv_d_func()->tam,
+                                       drv_d_func()->til,
+                                       drv_d_func()->tlr,
+                                       drv_d_func()->tff);
         iSt = IBPP::StatementFactory(iDb,iTr);
         iTr->Start();
     }
@@ -467,15 +483,15 @@ bool QFBResultPrivate::commit()
     return true;
 }
 //-----------------------------------------------------------------------//
-QFBResult::QFBResult(const QFBDriver *db, QTextCodec *tc):
-        QSqlCachedResult(db)
+QFBResult::QFBResult(const QFBDriver *db, QTextCodec *tc)
+        : QSqlCachedResult(*new QFBResultPrivate(this, db, tc))
 {
-    rp = new QFBResultPrivate(this, db, tc);
+    //rp = new QFBResultPrivate(this, db, tc);
 }
 //-----------------------------------------------------------------------//
 QFBResult::~QFBResult()
 {
-    delete rp;
+    //delete rp;
 }
 //-----------------------------------------------------------------------//
 bool QFBResult::prepare(const QString& query)
@@ -484,27 +500,28 @@ bool QFBResult::prepare(const QString& query)
     if (!driver() || !driver()->isOpen() || driver()->isOpenError())
         return false;
 
-    rp->cleanup();
+    Q_D(QFBResult);
+    d->cleanup();
 
     setActive(false);
     setAt(QSql::BeforeFirstRow);
 
-    if (!rp->transaction())
+    if (!d->transaction())
     {
         return false;
     }
 
     try
     {
-        rp->iSt->Prepare(toIBPPStr(query, rp->textCodec));
+        d->iSt->Prepare(toIBPPStr(query, d->textCodec));
     }
     catch (IBPP::Exception& e)
     {
-        rp->setError("Unable prepare statement", e , QSqlError::StatementError);
+        d->setError("Unable prepare statement", e , QSqlError::StatementError);
         return false;
     }
 
-    setSelect(rp->isSelect());
+    setSelect(d->isSelect());
 
     return true;
 }
@@ -515,7 +532,8 @@ bool QFBResult::exec()
     if (!driver() || !driver()->isOpen() || driver()->isOpenError())
         return false;
 
-    if (!rp->transaction())
+    Q_D(QFBResult);
+    if (!d->transaction())
     {
         return false;
     }
@@ -528,7 +546,7 @@ bool QFBResult::exec()
 
     try
     {
-        paramCount = rp->iSt->Parameters();
+        paramCount = d->iSt->Parameters();
     }
     catch (IBPP::Exception& e)
     {
@@ -544,13 +562,13 @@ bool QFBResult::exec()
         if (values.count() > paramCount)
         {
             qWarning("QFBResult::exec: Parameter mismatch, expected %d, got %d parameters",
-                     rp->iSt->Parameters(), values.count());
+                     d->iSt->Parameters(), values.count());
             return false;
         }
         for (i = 1; i <= values.count(); ++i)
         {
 
-            if (!rp->iSt->ParameterType(i))
+            if (!d->iSt->ParameterType(i))
                 continue;
 
             const QVariant val(values[i-1]);
@@ -559,53 +577,54 @@ bool QFBResult::exec()
             {
                 try
                 {
-                    rp->iSt->SetNull(i);
+                    d->iSt->SetNull(i);
                 }
                 catch (IBPP::Exception& e)
                 {
-                    rp->setError("Unable to set NULL", e, QSqlError::StatementError);
+                    d->setError("Unable to set NULL", e, QSqlError::StatementError);
                     return false;
                 }
                 continue;
             }
 
-            switch (rp->iSt->ParameterType(i))
+            switch (d->iSt->ParameterType(i))
             {
+            //int64_t i;
             case IBPP::sdLargeint:
-                if (rp->iSt->ParameterScale(i))
-                    rp->iSt->Set(i, val.toDouble());
+                if (d->iSt->ParameterScale(i))
+                    d->iSt->Set(i, val.toDouble());
                 else
-                    rp->iSt->Set(i, val.toLongLong());
+                    d->iSt->Set(i, static_cast<int64_t>(val.toLongLong()));
                 break;
             case IBPP::sdInteger:
-                if (rp->iSt->ParameterScale(i))
-                    rp->iSt->Set(i, val.toDouble());
+                if (d->iSt->ParameterScale(i))
+                    d->iSt->Set(i, val.toDouble());
                 else
-                    rp->iSt->Set(i, val.toInt());
+                    d->iSt->Set(i, val.toInt());
                 break;
             case IBPP::sdSmallint:
-                if (rp->iSt->ParameterScale(i))
-                    rp->iSt->Set(i, val.toDouble());
+                if (d->iSt->ParameterScale(i))
+                    d->iSt->Set(i, val.toDouble());
                 else
-                    rp->iSt->Set(i, (short)val.toInt());
+                    d->iSt->Set(i, (short)val.toInt());
                 break;
             case IBPP::sdFloat:
-                rp->iSt->Set(i, (float)val.toDouble());
+                d->iSt->Set(i, (float)val.toDouble());
                 break;
             case IBPP::sdDouble:
-                rp->iSt->Set(i, val.toDouble());
+                d->iSt->Set(i, val.toDouble());
                 break;
             case IBPP::sdTimestamp:
-                rp->iSt->Set(i, toIBPPTimeStamp(val.toDateTime()));
+                d->iSt->Set(i, toIBPPTimeStamp(val.toDateTime()));
                 break;
             case IBPP::sdTime:
-                rp->iSt->Set(i, toIBPPTime(val.toTime()));
+                d->iSt->Set(i, toIBPPTime(val.toTime()));
                 break;
             case IBPP::sdDate:
-                rp->iSt->Set(i, toIBPPDate(val.toDate()));
+                d->iSt->Set(i, toIBPPDate(val.toDate()));
                 break;
             case IBPP::sdString:
-                rp->iSt->Set(i, toIBPPStr(val.toString(), rp->textCodec));
+                d->iSt->Set(i, toIBPPStr(val.toString(), d->textCodec));
                 break;
             case IBPP::sdBlob:
                 {
@@ -613,15 +632,15 @@ bool QFBResult::exec()
                     QByteArray ba = val.toByteArray();
                     ss.resize(ba.size());
                     ss.assign(ba.constData(), ba.size());
-                    rp->iSt->Set(i, ss);
+                    d->iSt->Set(i, ss);
                     break;
                 }
             case IBPP::sdArray:
-//                ok &= rp->writeArray(i, val.toList());
+//                ok &= d->writeArray(i, val.toList());
                 break;
             default:
                 qWarning("QFBResult::exec: Unknown datatype %d",
-                         rp->iSt->ParameterType(i));
+                         d->iSt->ParameterType(i));
                 ok = false;
                 break;
             }
@@ -633,17 +652,17 @@ bool QFBResult::exec()
 
     try
     {
-        rp->iSt->Execute();
+        d->iSt->Execute();
     }
     catch (IBPP::Exception& e)
     {
-        rp->setError("Unable execute statement", e ,QSqlError::StatementError);
+        d->setError("Unable execute statement", e ,QSqlError::StatementError);
         return false;
     }
     int cols = 0;
     try
     {
-        cols = rp->iSt->Columns();
+        cols = d->iSt->Columns();
     }
     catch (IBPP::Exception& e)
     {
@@ -655,8 +674,8 @@ bool QFBResult::exec()
     else
         cleanup(); // cleanup
 
-    if (!rp->isSelect())
-        rp->commit();
+    if (!d->isSelect())
+        d->commit();
 
     setActive(true);
     return true;
@@ -673,13 +692,14 @@ bool QFBResult::gotoNext(QSqlCachedResult::ValueCache& row, int rowIdx)
 {
 
     bool stat;
+    Q_D(QFBResult);
     try
     {
-        stat = rp->iSt->Fetch();
+        stat = d->iSt->Fetch();
     }
     catch (IBPP::Exception& e)
     {
-        rp->setError("Could not fetch next item", e, QSqlError::StatementError);
+        d->setError("Could not fetch next item", e, QSqlError::StatementError);
         return false;
     }
 
@@ -696,7 +716,7 @@ bool QFBResult::gotoNext(QSqlCachedResult::ValueCache& row, int rowIdx)
     int cols = 0;
     try
     {
-        cols = rp->iSt->Columns();
+        cols = d->iSt->Columns();
     }
     catch (IBPP::Exception& e)
     {
@@ -707,83 +727,83 @@ bool QFBResult::gotoNext(QSqlCachedResult::ValueCache& row, int rowIdx)
     {
         int idx = rowIdx + i - 1;
 
-        if (rp->iSt->IsNull(i))
+        if (d->iSt->IsNull(i))
         {
             // null value
             QVariant v;
-            v.convert(qIBPPTypeName(rp->iSt->ColumnType(i)));
+            v.convert(qIBPPTypeName(d->iSt->ColumnType(i)));
             row[idx] = v;
             continue;
         }
 
-        switch (rp->iSt->ColumnType(i))
+        switch (d->iSt->ColumnType(i))
         {
         case IBPP::sdDate:
             {
                 IBPP::Date dt;
-                rp->iSt->Get(i, dt);
+                d->iSt->Get(i, dt);
                 row[idx] = fromIBPPDate(dt);
                 break;
             }
         case IBPP::sdTime:
             {
                 IBPP::Time tm;
-                rp->iSt->Get(i, tm);
+                d->iSt->Get(i, tm);
                 row[idx] = fromIBPPTime(tm);
                 break;
             }
         case IBPP::sdTimestamp:
             {
                 IBPP::Timestamp ts;
-                rp->iSt->Get(i, ts);
+                d->iSt->Get(i, ts);
                 row[idx] = fromIBPPTimeStamp(ts);
                 break;
             }
         case IBPP::sdSmallint:
             {
-                if (rp->iSt->ColumnScale(i))
+                if (d->iSt->ColumnScale(i))
                 {
                     double l_Double;
-                    rp->iSt->Get(i, l_Double);
+                    d->iSt->Get(i, l_Double);
                     row[idx] = l_Double;
                 }
                 else
                 {
                     short l_Short;
-                    rp->iSt->Get(i, l_Short);
+                    d->iSt->Get(i, l_Short);
                     row[idx] =l_Short;
                 }
                 break;
             }
         case IBPP::sdInteger:
             {
-                if (rp->iSt->ColumnScale(i))
+                if (d->iSt->ColumnScale(i))
                 {
                     double l_Double;
-                    rp->iSt->Get(i, l_Double);
+                    d->iSt->Get(i, l_Double);
                     row[idx] = l_Double;
                 }
                 else
                 {
                     int l_Integer;
-                    rp->iSt->Get(i, l_Integer);
+                    d->iSt->Get(i, l_Integer);
                     row[idx] = l_Integer;
                 }
                 break;
             }
         case IBPP::sdLargeint:
             {
-                if (rp->iSt->ColumnScale(i))
+                if (d->iSt->ColumnScale(i))
                 {
                     double l_Double;
-                    rp->iSt->Get(i, l_Double);
+                    d->iSt->Get(i, l_Double);
                     row[idx] = l_Double;
                 }
                 else
                 {
-                    qlonglong l_Long;
-                    rp->iSt->Get(i, l_Long);
-                    row[idx] = l_Long;
+                    int64_t l_Long;
+                    d->iSt->Get(i, l_Long);
+                    row[idx] = static_cast<qlonglong>(l_Long);
 
                 }
                 break;
@@ -791,33 +811,33 @@ bool QFBResult::gotoNext(QSqlCachedResult::ValueCache& row, int rowIdx)
         case IBPP::sdFloat:
             {
                 float l_Float;
-                rp->iSt->Get(i, l_Float);
+                d->iSt->Get(i, l_Float);
                 row[idx] = l_Float;
                 break;
             }
         case IBPP::sdDouble:
             {
                 double l_Double;
-                rp->iSt->Get(i, l_Double);
+                d->iSt->Get(i, l_Double);
                 row[idx] = l_Double;
                 break;
             }
         case IBPP::sdString:
             {
                 std::string l_String;
-                rp->iSt->Get(i, l_String);
-                row[idx] = fromIBPPStr(l_String, rp->textCodec);
+                d->iSt->Get(i, l_String);
+                row[idx] = fromIBPPStr(l_String, d->textCodec);
                 break;
             }
         case IBPP::sdArray:
             {
-//	            row[idx] = rp->fetchArray(i, (ISC_QUAD*)buf);
+//	            row[idx] = d->fetchArray(i, (ISC_QUAD*)buf);
                 break;
             }
         case IBPP::sdBlob:
             {
-                IBPP::Blob l_Blob = IBPP::BlobFactory(rp->iDb, rp->iTr);
-                rp->iSt->Get(i, l_Blob);
+                IBPP::Blob l_Blob = IBPP::BlobFactory(d->iDb, d->iTr);
+                d->iSt->Get(i, l_Blob);
 
                 QByteArray l_QBlob;
 
@@ -851,9 +871,10 @@ int QFBResult::size()
     // :(
     if (isSelect())
         return nra;
+    Q_D(QFBResult);
     try
     {
-        nra = rp->iSt->AffectedRows();
+        nra = d->iSt->AffectedRows();
     }
     catch (IBPP::Exception& e)
     {
@@ -862,12 +883,13 @@ int QFBResult::size()
     return nra;
 }
 //-----------------------------------------------------------------------//
-bool QFBResult::isNull(const int& field)
+bool QFBResult::isNull(int field)
 {
     int cols = 0;
+    Q_D(QFBResult);
     try
     {
-        cols = rp->iSt->Columns();
+        cols = d->iSt->Columns();
 
         if (field < 0 || field >= cols)
         {
@@ -875,7 +897,7 @@ bool QFBResult::isNull(const int& field)
         }
         else
         {
-            return rp->iSt->IsNull(field + 1);
+            return d->iSt->IsNull(field + 1);
         }
     }
     catch (IBPP::Exception& e)
@@ -891,9 +913,10 @@ int QFBResult::numRowsAffected()
     if (isSelect())
         return nra;
 
+    Q_D(QFBResult);
     try
     {
-        nra = rp->iSt->AffectedRows();
+        nra = d->iSt->AffectedRows();
     }
     catch (IBPP::Exception& e)
     {
@@ -909,9 +932,10 @@ QSqlRecord QFBResult::record() const
         return rec;
 
     int cols = 0;
+    Q_D(const QFBResult);
     try
     {
-        cols = rp->iSt->Columns();
+        cols = d->iSt->Columns();
     }
     catch (IBPP::Exception& e)
     {
@@ -919,8 +943,7 @@ QSqlRecord QFBResult::record() const
     }
     for (int i = 1; i <= cols; ++i)
     {
-
-        const QString& column_alias = QString::fromLatin1(rp->iSt->ColumnAlias(i)).simplified();
+        const QString& column_alias = QString::fromLatin1(d->iSt->ColumnAlias(i)).simplified();
         QString alias = column_alias;
 
         int num(1);
@@ -930,10 +953,11 @@ QSqlRecord QFBResult::record() const
         }
 
         QSqlField f(alias,
-                    qIBPPTypeName(rp->iSt->ColumnType(i)));
-        f.setLength(rp->iSt->ColumnSize(i));
-        f.setPrecision(rp->iSt->ColumnScale(i));
-        f.setSqlType(rp->iSt->ColumnType(i));
+                    qIBPPTypeName(d->iSt->ColumnType(i)));
+        f.setLength(d->iSt->ColumnSize(i));
+        f.setPrecision(d->iSt->ColumnScale(i));
+        f.setSqlType(d->iSt->ColumnType(i));
+
         rec.append(f);
     }
     return rec;
@@ -941,29 +965,27 @@ QSqlRecord QFBResult::record() const
 //-----------------------------------------------------------------------//
 QVariant QFBResult::handle() const
 {
-    return QVariant(qRegisterMetaType<IBPP::IStatement *>("ibpp_statement_handle"), rp->iSt.intf());
-    return QVariant();
+    Q_D(const QFBResult);
+    return QVariant(qRegisterMetaType<IBPP::IStatement *>("ibpp_statement_handle"), d->iSt.intf());
 }
 //-----------------------------------------------------------------------//
 //-----------------------------------------------------------------------//
 QFBDriver::QFBDriver(QObject * parent)
-    : QSqlDriver(parent)
+    : QSqlDriver(*new QFBDriverPrivate, parent)
 {
-    dp = new QFBDriverPrivate(this);
 }
 //-----------------------------------------------------------------------//
 QFBDriver::QFBDriver(void *connection, QObject *parent)
-        : QSqlDriver(parent)
+        : QSqlDriver(*new QFBDriverPrivate, parent)
 {
-    dp = new QFBDriverPrivate(this);
-    dp->iDb=(IBPP::IDatabase*)connection;
+    Q_D(QFBDriver);
+    d->iDb=(IBPP::IDatabase*)connection;
     setOpen(true);
     setOpenError(false);
 }
 //-----------------------------------------------------------------------//
 QFBDriver::~QFBDriver()
 {
-    delete dp;
 }
 //-----------------------------------------------------------------------//
 bool QFBDriver::hasFeature(DriverFeature f) const
@@ -1105,17 +1127,18 @@ bool QFBDriver::open(const QString & db,
     else if (charSet == QLatin1String("WIN1258"))
         codecName = "Windows-1258";
 
+    Q_D(QFBDriver);
     if (codecName.isEmpty())
-        dp->textCodec = QTextCodec::codecForName(charSet.toLatin1()); //try codec with charSet
+        d->textCodec = QTextCodec::codecForName(charSet.toLatin1()); //try codec with charSet
     else
-        dp->textCodec = QTextCodec::codecForName(codecName);
+        d->textCodec = QTextCodec::codecForName(codecName);
 
-    if (!dp->textCodec)
-        dp->textCodec = QTextCodec::codecForLocale(); //if unknown set locale
+    if (!d->textCodec)
+        d->textCodec = QTextCodec::codecForLocale(); //if unknown set locale
 
     try
     {
-        dp->iDb=IBPP::DatabaseFactory(host.toStdString(),
+        d->iDb=IBPP::DatabaseFactory(host.toStdString(),
                                       db.toStdString(),
                                       user.toStdString(),
                                       password.toStdString(),
@@ -1123,13 +1146,13 @@ bool QFBDriver::open(const QString & db,
                                       charSet.toStdString(),
                                       "");
 
-        dp->iDb->Connect();
+        d->iDb->Connect();
 
     }
     catch (IBPP::Exception& e)
     {
         setOpenError(true);
-        dp->setError("Unable to connect", e, QSqlError::ConnectionError);
+        d->setError("Unable to connect", e, QSqlError::ConnectionError);
         return false;
     }
 
@@ -1141,17 +1164,17 @@ void QFBDriver::close()
 {
     if (!isOpen())
         return;
-
-    if (dp->iL.count())
-        qWarning("QFBDriver::close : %d transaction still sarted ! Rollback all.",dp->iL.count());
+    Q_D(QFBDriver);
+    if (d->iL.count())
+        qWarning("QFBDriver::close : %d transaction still sarted ! Rollback all.",d->iL.count());
 
     try
     {
-        dp->iDb->Disconnect();
+        d->iDb->Disconnect();
     }
     catch (IBPP::Exception& e)
     {
-        dp->setError("Unable to disconnect", e, QSqlError::ConnectionError);
+        d->setError("Unable to disconnect", e, QSqlError::ConnectionError);
         return;
     }
     setOpen(false);
@@ -1160,7 +1183,8 @@ void QFBDriver::close()
 //-----------------------------------------------------------------------//
 QSqlResult *QFBDriver::createResult() const
 {
-    return new QFBResult(this, dp->textCodec);
+    Q_D(const QFBDriver);
+    return new QFBResult(this, d->textCodec);
 }
 //-----------------------------------------------------------------------//
 bool QFBDriver::beginTransaction()
@@ -1171,25 +1195,25 @@ bool QFBDriver::beginTransaction()
     //if (dp->iTr != 0)
     //if (dp->iTr->Started())
     //return false;
-
-    dp->iTr.clear();
+    Q_D(QFBDriver);
+    d->iTr.clear();
 
     try
     {
-        dp->checkTransactionArguments();
-        dp->iTr = IBPP::TransactionFactory(dp->iDb, dp->tam, dp->til, dp->tlr, dp->tff);
-        dp->iTr->Start();
+        d->checkTransactionArguments();
+        d->iTr = IBPP::TransactionFactory(d->iDb, d->tam, d->til, d->tlr, d->tff);
+        d->iTr->Start();
     }
     catch (IBPP::Exception& e)
     {
-        dp->iTr.clear();
-        dp->setError("Unable start transaction", e, QSqlError::TransactionError);
+        d->iTr.clear();
+        d->setError("Unable start transaction", e, QSqlError::TransactionError);
         return false;
     }
 
-    dp->iL.push_back(dp->iTr);
-    if (dp->iL.count() > 1)
-        qWarning("QFBDriver::transaction : Start transactions  %d.",dp->iL.count());
+    d->iL.push_back(d->iTr);
+    if (d->iL.count() > 1)
+        qWarning("QFBDriver::transaction : Start transactions  %d.",d->iL.count());
 
     return true;
 }
@@ -1198,24 +1222,25 @@ bool QFBDriver::commitTransaction()
 {
     if (!isOpen() || isOpenError())
         return false;
-    if (dp->iTr == 0)
+    Q_D(QFBDriver);
+    if (d->iTr == 0)
         return false;
 
     try
     {
-        dp->iTr->Commit();
+        d->iTr->Commit();
     }
     catch (IBPP::Exception& e)
     {
-        dp->setError("Unable to commit transaction", e, QSqlError::TransactionError);
+        d->setError("Unable to commit transaction", e, QSqlError::TransactionError);
         return false;
     }
 
-    dp->iTr.clear();
-    dp->iL.removeLast ();
-    if (!dp->iL.isEmpty())
+    d->iTr.clear();
+    d->iL.removeLast ();
+    if (!d->iL.isEmpty())
     {
-        dp->iTr = dp->iL.last();
+        d->iTr = d->iL.last();
     }
 
     return true;
@@ -1225,24 +1250,25 @@ bool QFBDriver::rollbackTransaction()
 {
     if (!isOpen() || isOpenError())
         return false;
-    if (dp->iTr == 0)
+    Q_D(QFBDriver);
+    if (d->iTr == 0)
         return false;
 
     try
     {
-        dp->iTr->Rollback();
+        d->iTr->Rollback();
     }
     catch (IBPP::Exception& e)
     {
-        dp->setError("Unable to rollback transaction" , e , QSqlError::TransactionError);
+        d->setError("Unable to rollback transaction" , e , QSqlError::TransactionError);
         return false;
     }
 
-    dp->iTr.clear();
-    dp->iL.removeLast ();
-    if (!dp->iL.isEmpty())
+    d->iTr.clear();
+    d->iL.removeLast ();
+    if (!d->iL.isEmpty())
     {
-        dp->iTr = dp->iL.last();
+        d->iTr = d->iL.last();
     }
     return true;
 }
@@ -1383,7 +1409,7 @@ QString QFBDriver::formatValue(const QSqlField &field, bool trimStrings) const
 //-----------------------------------------------------------------------//
 QVariant QFBDriver::handle() const
 {
-    return QVariant(qRegisterMetaType<IBPP::IDatabase *>("ibbp_db_handle"), dp->iDb.intf());
-    return QVariant();
+    Q_D(const QFBDriver);
+    return QVariant(qRegisterMetaType<IBPP::IDatabase *>("ibbp_db_handle"), d->iDb.intf());
 }
 //-----------------------------------------------------------------------//

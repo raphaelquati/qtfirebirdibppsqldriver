@@ -29,7 +29,7 @@
 #include <QtSql/qsqlresult.h>
 #include <QtSql/qsqldriver.h>
 #include <qsqldriverplugin.h>
-#include "qsqlcachedresult_p.h"
+#include <QtSql/private/qsqlcachedresult_p.h>
 
 QT_BEGIN_HEADER
 class QFBDriverPrivate;
@@ -48,66 +48,76 @@ public:
     QSqlDriver* create(const QString &);
     QStringList keys() const;
 };
+
 class QFBResult : public QSqlCachedResult
 {
-    friend class QFBResultPrivate;
+    Q_DECLARE_PRIVATE(QFBResult)
 
 public:
     explicit QFBResult(const QFBDriver *db, QTextCodec *tc);
     virtual ~QFBResult();
 
-    bool prepare(const QString& query);
-    bool exec();
-    QVariant handle() const;
+    bool prepare(const QString& query) Q_DECL_OVERRIDE;
+    bool exec() Q_DECL_OVERRIDE;
+    QVariant handle() const Q_DECL_OVERRIDE;
 
 protected:
-    bool gotoNext(QSqlCachedResult::ValueCache& row, int rowIdx);
-    bool reset (const QString& query);
-    int size();
-    bool isNull(const int& field);
-    int numRowsAffected();
-    QSqlRecord record() const;
-
-private:
-    QFBResultPrivate* rp;
+    bool gotoNext(QSqlCachedResult::ValueCache& row, int rowIdx) Q_DECL_OVERRIDE;
+    bool reset (const QString& query) Q_DECL_OVERRIDE;
+    int size() Q_DECL_OVERRIDE;
+    bool isNull(int field) Q_DECL_OVERRIDE;
+    int numRowsAffected() Q_DECL_OVERRIDE;
+    QSqlRecord record() const Q_DECL_OVERRIDE;
 };
+
+class QSqlResult;
 
 class QFBDriver : public QSqlDriver
 {
-    friend class QFBDriverPrivate;
     friend class QFBResultPrivate;
+    Q_DECLARE_PRIVATE(QFBDriver)
+    Q_OBJECT
 public:
-    explicit QFBDriver(QObject *parent = 0);
-    explicit QFBDriver(void *connection, QObject *parent = 0);
+    explicit QFBDriver(QObject *parent = nullptr);
+    explicit QFBDriver(void *connection, QObject *parent = nullptr);
     virtual ~QFBDriver();
-    bool hasFeature(DriverFeature f) const;
+    bool hasFeature(DriverFeature f) const Q_DECL_OVERRIDE;
     bool open(const QString & db,
                    const QString & user,
                    const QString & password,
                    const QString & host,
                    int port,
                    const QString & connOpts);
-    bool open(const QString & db,
-            const QString & user,
-            const QString & password,
-            const QString & host,
-            int port)
-        { return open (db, user, password, host, port, QString()); }
-    void close();
-    QSqlResult *createResult() const;
-    bool beginTransaction();
-    bool commitTransaction();
-    bool rollbackTransaction();
-    QStringList tables(QSql::TableType) const;
+    bool open(const QString &db,
+            const QString &user,
+            const QString &password,
+            const QString &host,
+            int port) { return open(db, user, password, host, port, QString()); }
+    void close() Q_DECL_OVERRIDE;
+    QSqlResult *createResult() const Q_DECL_OVERRIDE;
+    bool beginTransaction() Q_DECL_OVERRIDE;
+    bool commitTransaction() Q_DECL_OVERRIDE;
+    bool rollbackTransaction() Q_DECL_OVERRIDE;
+    QStringList tables(QSql::TableType) const Q_DECL_OVERRIDE;
 
-    QSqlRecord record(const QString& tablename) const;
-    QSqlIndex primaryIndex(const QString &table) const;
+    QSqlRecord record(const QString& tablename) const Q_DECL_OVERRIDE;
+    QSqlIndex primaryIndex(const QString &table) const Q_DECL_OVERRIDE;
 
-    QString formatValue(const QSqlField &field, bool trimStrings) const;
-    QVariant handle() const;
+    QString formatValue(const QSqlField &field, bool trimStrings) const Q_DECL_OVERRIDE;
+    QVariant handle() const Q_DECL_OVERRIDE;
 
-private:
-    QFBDriverPrivate* dp;
+//TODO
+//    QString escapeIdentifier(const QString &identifier, IdentifierType type) const Q_DECL_OVERRIDE;
+
+//    bool subscribeToNotification(const QString &name) Q_DECL_OVERRIDE;
+//    bool unsubscribeFromNotification(const QString &name) Q_DECL_OVERRIDE;
+//    QStringList subscribedToNotifications() const Q_DECL_OVERRIDE;
+
+//private Q_SLOTS:
+//    void qHandleEventNotification(void* updatedResultBuffer);
+//OLD
+//private:
+//    QFBDriverPrivate* dp;
 };
 
 QT_END_HEADER
